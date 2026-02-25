@@ -1,5 +1,7 @@
 import os
 import subprocess
+import requests
+from bs4 import BeautifulSoup
 from typing import Dict, Any
 
 class BaseTool:
@@ -60,7 +62,65 @@ class FileWriteTool(BaseTool):
         except Exception as e:
             return {"error": str(e)}
 
+class FileReadTool(BaseTool):
+    def get_schema(self):
+        return {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read content from a file.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Path to the file."}
+                    },
+                    "required": ["path"]
+                }
+            }
+        }
+    
+    def execute(self, path: str):
+        try:
+            with open(path, "r") as f:
+                return {"content": f.read()}
+        except Exception as e:
+            return {"error": str(e)}
+
+class WebBrowseTool(BaseTool):
+    def get_schema(self):
+        return {
+            "type": "function",
+            "function": {
+                "name": "browse_web",
+                "description": "Browse a website and extract text content.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "The URL to browse."}
+                    },
+                    "required": ["url"]
+                }
+            }
+        }
+    
+    def execute(self, url: str):
+        try:
+            response = requests.get(url, timeout=10)
+            soup = BeautifulSoup(response.text, "html.parser")
+            for script in soup(["script", "style"]):
+                script.decompose()
+            text = soup.get_text()
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = "
+".join(chunk for chunk in chunks if chunk)
+            return {"content": text[:5000]}
+        except Exception as e:
+            return {"error": str(e)}
+
 TOOL_MAP = {
     "execute_shell": ShellTool(),
-    "write_file": FileWriteTool()
+    "write_file": FileWriteTool(),
+    "read_file": FileReadTool(),
+    "browse_web": WebBrowseTool()
 }
