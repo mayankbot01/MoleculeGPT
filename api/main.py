@@ -1,8 +1,11 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from minion.agent import MinionAgent
 import uuid
+import os
 
 app = FastAPI(title="MoleculeGPT API")
 
@@ -38,3 +41,10 @@ async def get_session(session_id: str):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+# Serve the frontend
+app.mount("/web", StaticFiles(directory="web"), name="web")
+
+@app.get("/")
+async def read_index():
+    return FileResponse("web/index.html")
